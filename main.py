@@ -1,5 +1,22 @@
 const = 32
 
+ASCII_MIN = 32
+ASCII_MAX = 255
+ALPHABET_SIZE = ASCII_MAX - ASCII_MIN + 1  # 224 caractères
+
+
+def _car_to_index(c: str) -> int | None:
+    """Convertit un caractère en indice (0..ALPHABET_SIZE-1) ou None s'il est hors alphabet."""
+    code = ord(c)
+    if ASCII_MIN <= code <= ASCII_MAX:
+        return code - ASCII_MIN
+    return None
+
+
+def _index_to_car(i: int) -> str:
+    """Convertit un indice (0..ALPHABET_SIZE-1) en caractère dans la plage ASCII_MIN..ASCII_MAX."""
+    return chr(ASCII_MIN + (i % ALPHABET_SIZE))
+
 def chiffrer(message, cle):
     messageChiffre = ''
     for character in message:
