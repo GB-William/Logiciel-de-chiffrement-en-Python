@@ -1,3 +1,7 @@
+import string
+import tkinter as tk
+from tkinter import filedialog, simpledialog, messagebox
+
 ASCII_MIN = 32
 ASCII_MAX = 255
 ALPHABET_SIZE = ASCII_MAX - ASCII_MIN + 1  # 224 caractères
