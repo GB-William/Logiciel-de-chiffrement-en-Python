@@ -1,5 +1,3 @@
-const = 32
-
 ASCII_MIN = 32
 ASCII_MAX = 255
 ALPHABET_SIZE = ASCII_MAX - ASCII_MIN + 1  # 224 caractères
@@ -20,7 +18,7 @@ def _index_to_car(i: int) -> str:
 def chiffrer(message, cle):
     messageChiffre = ''
     for character in message:
-        messageChiffre += chr(((ord(character) - const + cle) % 95)+const)
+        messageChiffre += chr(((ord(character) - ASCII_MIN + cle) % 95)+ASCII_MIN)
     print(messageChiffre)
     return messageChiffre
 
@@ -28,7 +26,7 @@ def chiffrer(message, cle):
 def dechiffrer(message, cle):
     messageDechiffre = ''
     for character in message:
-        messageDechiffre += chr(((ord(character) - const - cle) % 95) + const)
+        messageDechiffre += chr(((ord(character) - ASCII_MIN - cle) % 95) + ASCII_MIN)
     print(messageDechiffre)
     return messageDechiffre
 
