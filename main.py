@@ -1,10 +1,12 @@
-import string
 import tkinter as tk
 from tkinter import filedialog, simpledialog, messagebox
 
 ASCII_MIN = 32
 ASCII_MAX = 126
 ALPHABET_SIZE = ASCII_MAX - ASCII_MIN + 1  # 95 caractères
+
+# Caractères à ne PAS chiffrer (préservation de la mise en page)
+CARACTERES_PRESERVES = {' ', '\n', '\r', '\t'}
 
 
 def _car_to_index(c: str) -> int | None:
@@ -20,13 +22,18 @@ def _index_to_car(i: int) -> str:
     return chr(ASCII_MIN + (i % ALPHABET_SIZE))
 
 def chiffrer(message: str, cle: int) -> str:
+    """
+    Chiffre un message avec César en préservant la mise en page.
+    Les espaces, retours à la ligne, tabulations restent intacts.
+    """
     messageChiffre = ""
     for character in message:
-        messageChiffre += chr(((ord(character) - ASCII_MIN + cle) % ALPHABET_SIZE) + ASCII_MIN)
+        if character in CARACTERES_PRESERVES:
+            # Préserver les caractères de mise en page
+            messageChiffre += character
+        else:
+            messageChiffre += chr(((ord(character) - ASCII_MIN + cle) % ALPHABET_SIZE) + ASCII_MIN)
     return messageChiffre
-
-
-
 
 
 def chiffrer_cesar(message: str, cle: int) -> str:
@@ -79,39 +86,64 @@ def _cle_vigenere_indices(cle: str) -> list[int]:
 
 def chiffrer_vigenere(message: str, cle: str) -> str:
     """
-    Chiffrement de Vigenère.
+    Chiffrement de Vigenère en préservant la mise en page.
     Pour chaque lettre : lettre_chiffree = (lettre_message + lettre_cle) mod 95
     où les lettres sont représentées par (ASCII - 32).
+    Les espaces, retours à la ligne et tabulations sont préservés.
     """
     if not cle:
         raise ValueError("La clé Vigenère ne doit pas être vide.")
 
-    msg_indices = _texte_vers_indices(message)
     key_indices = _cle_vigenere_indices(cle)
-
     res = []
-    for i, m_idx in enumerate(msg_indices):
-        k_idx = key_indices[i % len(key_indices)]
-        c_idx = (m_idx + k_idx) % ALPHABET_SIZE
-        res.append(_index_to_car(c_idx))
+    key_position = 0  # Position dans la clé (n'avance que pour les caractères chiffrés)
+    
+    for char in message:
+        if char in CARACTERES_PRESERVES:
+            # Préserver les caractères de mise en page
+            res.append(char)
+        else:
+            m_idx = _car_to_index(char)
+            if m_idx is None:
+                raise ValueError(
+                    f"Caractère '{char}' hors alphabet ASCII {ASCII_MIN}..{ASCII_MAX}"
+                )
+            
+            k_idx = key_indices[key_position % len(key_indices)]
+            c_idx = (m_idx + k_idx) % ALPHABET_SIZE
+            res.append(_index_to_car(c_idx))
+            key_position += 1  # Avancer dans la clé uniquement pour les caractères chiffrés
+    
     return "".join(res)
 
 def dechiffrer_vigenere(message: str, cle: str) -> str:
     """
-    Déchiffrement de Vigenère.
+    Déchiffrement de Vigenère en préservant la mise en page.
     lettre_originale = (lettre_chiffree - lettre_cle) mod 95
     """
     if not cle:
         raise ValueError("La clé Vigenère ne doit pas être vide.")
 
-    msg_indices = _texte_vers_indices(message)
     key_indices = _cle_vigenere_indices(cle)
-
     res = []
-    for i, c_idx in enumerate(msg_indices):
-        k_idx = key_indices[i % len(key_indices)]
-        m_idx = (c_idx - k_idx) % ALPHABET_SIZE
-        res.append(_index_to_car(m_idx))
+    key_position = 0
+    
+    for char in message:
+        if char in CARACTERES_PRESERVES:
+            # Préserver les caractères de mise en page
+            res.append(char)
+        else:
+            c_idx = _car_to_index(char)
+            if c_idx is None:
+                raise ValueError(
+                    f"Caractère '{char}' hors alphabet ASCII {ASCII_MIN}..{ASCII_MAX}"
+                )
+            
+            k_idx = key_indices[key_position % len(key_indices)]
+            m_idx = (c_idx - k_idx) % ALPHABET_SIZE
+            res.append(_index_to_car(m_idx))
+            key_position += 1
+    
     return "".join(res)
 
 
@@ -431,4 +463,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
