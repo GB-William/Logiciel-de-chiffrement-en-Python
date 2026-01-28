@@ -54,3 +54,21 @@ def chiffrer_vigenere(message: str, cle: str) -> str:
         c_idx = (m_idx + k_idx) % ALPHABET_SIZE
         res.append(_index_to_car(c_idx))
     return "".join(res)
+
+def dechiffrer_vigenere(message: str, cle: str) -> str:
+    """
+    Déchiffrement de Vigenère.
+    lettre_originale = (lettre_chiffree - lettre_cle) mod 95
+    """
+    if not cle:
+        raise ValueError("La clé Vigenère ne doit pas être vide.")
+
+    msg_indices = _texte_vers_indices(message)
+    key_indices = _cle_vigenere_indices(cle)
+
+    res = []
+    for i, c_idx in enumerate(msg_indices):
+        k_idx = key_indices[i % len(key_indices)]
+        m_idx = (c_idx - k_idx) % ALPHABET_SIZE
+        res.append(_index_to_car(m_idx))
+    return "".join(res)
