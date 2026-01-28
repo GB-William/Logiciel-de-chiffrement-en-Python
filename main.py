@@ -1,10 +1,9 @@
-import string
 import tkinter as tk
 from tkinter import filedialog, simpledialog, messagebox
 
 ASCII_MIN = 32
-ASCII_MAX = 255
-ALPHABET_SIZE = ASCII_MAX - ASCII_MIN + 1  # 224 caractères
+ASCII_MAX = 126
+ALPHABET_SIZE = ASCII_MAX - ASCII_MIN + 1  # 95 caractères
 
 
 def _car_to_index(c: str) -> int | None:
@@ -19,15 +18,42 @@ def _index_to_car(i: int) -> str:
     """Convertit un indice (0..ALPHABET_SIZE-1) en caractère dans la plage ASCII_MIN..ASCII_MAX."""
     return chr(ASCII_MIN + (i % ALPHABET_SIZE))
 
-def chiffrer(message: str, cle: int):
-    messageChiffre = ''
+def chiffrer(message: str, cle: int) -> str:
+    messageChiffre = ""
     for character in message:
-        messageChiffre += chr(((ord(character) - ASCII_MIN + cle) % 95)+ASCII_MIN)
+        messageChiffre += chr(((ord(character) - ASCII_MIN + cle) % ALPHABET_SIZE) + ASCII_MIN)
     return messageChiffre
 
 
-def dechiffrer(message, cle):
+
+
+
+def chiffrer_cesar(message: str, cle: int) -> str:
+    """Chiffrement de César avec une clé numérique (décalage entier)."""
+    return chiffrer(message, cle)
+
+
+def dechiffrer_cesar(message: str, cle: int) -> str:
+    """Déchiffrement de César avec une clé numérique (décalage entier)."""
     return chiffrer(message, -cle)
+
+
+def chiffrer_cesar_lettre(message: str, cle: str) -> str:
+    """
+    Chiffrement de César avec une clé lettre.
+    Le décalage est : ord(cle[0]) - ASCII_MIN.
+    """
+    decalage = ord(cle[0]) - ASCII_MIN
+    return chiffrer(message, decalage)
+
+
+def dechiffrer_cesar_lettre(message: str, cle: str) -> str:
+    """
+    Déchiffrement de César avec une clé lettre.
+    Le décalage est : ord(cle[0]) - ASCII_MIN.
+    """
+    decalage = ord(cle[0]) - ASCII_MIN
+    return chiffrer(message, -decalage)
 
 def _texte_vers_indices(texte: str) -> list[int]:
     """Convertit un texte en liste d'indices dans l'alphabet 0..ALPHABET_SIZE-1 (s'il est dans l'intervalle)."""
@@ -86,6 +112,42 @@ def dechiffrer_vigenere(message: str, cle: str) -> str:
         m_idx = (c_idx - k_idx) % ALPHABET_SIZE
         res.append(_index_to_car(m_idx))
     return "".join(res)
+
+
+def chiffrer_fichier(source: str, destination: str, algo: str, cle) -> None:
+    """Chiffre un fichier texte selon l'algorithme et la clé fournis."""
+    with open(source, "r", encoding="utf-8") as f:
+        contenu = f.read()
+
+    if algo == "cesar_num":
+        resultat = chiffrer_cesar(contenu, cle)
+    elif algo == "cesar_lettre":
+        resultat = chiffrer_cesar_lettre(contenu, cle)
+    elif algo == "vigenere":
+        resultat = chiffrer_vigenere(contenu, cle)
+    else:
+        raise ValueError("Algorithme de chiffrement inconnu.")
+
+    with open(destination, "w", encoding="utf-8") as f:
+        f.write(resultat)
+
+
+def dechiffrer_fichier(source: str, destination: str, algo: str, cle) -> None:
+    """Déchiffre un fichier texte selon l'algorithme et la clé fournis."""
+    with open(source, "r", encoding="utf-8") as f:
+        contenu = f.read()
+
+    if algo == "cesar_num":
+        resultat = dechiffrer_cesar(contenu, cle)
+    elif algo == "cesar_lettre":
+        resultat = dechiffrer_cesar_lettre(contenu, cle)
+    elif algo == "vigenere":
+        resultat = dechiffrer_vigenere(contenu, cle)
+    else:
+        raise ValueError("Algorithme de chiffrement inconnu.")
+
+    with open(destination, "w", encoding="utf-8") as f:
+        f.write(resultat)
 
 
 
