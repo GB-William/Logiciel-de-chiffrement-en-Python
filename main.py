@@ -19,20 +19,15 @@ def _index_to_car(i: int) -> str:
     """Convertit un indice (0..ALPHABET_SIZE-1) en caractère dans la plage ASCII_MIN..ASCII_MAX."""
     return chr(ASCII_MIN + (i % ALPHABET_SIZE))
 
-def chiffrer(message, cle):
+def chiffrer(message: str, cle: int):
     messageChiffre = ''
     for character in message:
         messageChiffre += chr(((ord(character) - ASCII_MIN + cle) % 95)+ASCII_MIN)
-    print(messageChiffre)
     return messageChiffre
 
 
 def dechiffrer(message, cle):
-    messageDechiffre = ''
-    for character in message:
-        messageDechiffre += chr(((ord(character) - ASCII_MIN - cle) % 95) + ASCII_MIN)
-    print(messageDechiffre)
-    return messageDechiffre
+    return chiffrer(message, -cle)
 
 def _texte_vers_indices(texte: str) -> list[int]:
     """Convertit un texte en liste d'indices dans l'alphabet 0..ALPHABET_SIZE-1 (s'il est dans l'intervalle)."""
