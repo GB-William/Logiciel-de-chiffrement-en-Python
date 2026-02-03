@@ -154,7 +154,8 @@ Ce projet permet de travailler sur :
 
 ## 👥 Auteurs
 
-- **GB-William** - *Développement initial* - [GitHub](https://github.com/GB-William)
+- **GB-William** - [GitHub](https://github.com/GB-William)
+- **Bruno-AMUZU** - [GitHub](https://github.com/Bruno-AMUZU)
 
 ## 📄 Licence
 
