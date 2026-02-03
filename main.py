@@ -1,13 +1,12 @@
 import tkinter as tk
 from tkinter import filedialog, simpledialog, messagebox
 
+# --- CONSTANTES ---
 ASCII_MIN = 32
 ASCII_MAX = 126
 ALPHABET_SIZE = ASCII_MAX - ASCII_MIN + 1  # 95 caractères
 
-# Caractères à ne PAS chiffrer (préservation de la mise en page)
-CARACTERES_PRESERVES = {' ', '\n', '\r', '\t'}
-
+# --- FONCTIONS UTILITAIRES ---
 
 def _car_to_index(c: str) -> int | None:
     """Convertit un caractère en indice (0..ALPHABET_SIZE-1) ou None s'il est hors alphabet."""
@@ -16,141 +15,120 @@ def _car_to_index(c: str) -> int | None:
         return code - ASCII_MIN
     return None
 
-
 def _index_to_car(i: int) -> str:
     """Convertit un indice (0..ALPHABET_SIZE-1) en caractère dans la plage ASCII_MIN..ASCII_MAX."""
     return chr(ASCII_MIN + (i % ALPHABET_SIZE))
 
-def chiffrer(message: str, cle: int) -> str:
-    """
-    Chiffre un message avec César en préservant la mise en page.
-    Les espaces, retours à la ligne, tabulations restent intacts.
-    """
-    messageChiffre = ""
-    for character in message:
-        if character in CARACTERES_PRESERVES:
-            # Préserver les caractères de mise en page
-            messageChiffre += character
-        else:
-            messageChiffre += chr(((ord(character) - ASCII_MIN + cle) % ALPHABET_SIZE) + ASCII_MIN)
-    return messageChiffre
-
-
-def chiffrer_cesar(message: str, cle: int) -> str:
-    """Chiffrement de César avec une clé numérique (décalage entier)."""
-    return chiffrer(message, cle)
-
-
-def dechiffrer_cesar(message: str, cle: int) -> str:
-    """Déchiffrement de César avec une clé numérique (décalage entier)."""
-    return chiffrer(message, -cle)
-
-
-def chiffrer_cesar_lettre(message: str, cle: str) -> str:
-    """
-    Chiffrement de César avec une clé lettre.
-    Le décalage est : ord(cle[0]) - ASCII_MIN.
-    """
-    decalage = ord(cle[0]) - ASCII_MIN
-    return chiffrer(message, decalage)
-
-
-def dechiffrer_cesar_lettre(message: str, cle: str) -> str:
-    """
-    Déchiffrement de César avec une clé lettre.
-    Le décalage est : ord(cle[0]) - ASCII_MIN.
-    """
-    decalage = ord(cle[0]) - ASCII_MIN
-    return chiffrer(message, -decalage)
-
 def _texte_vers_indices(texte: str) -> list[int]:
-    """Convertit un texte en liste d'indices dans l'alphabet 0..ALPHABET_SIZE-1 (s'il est dans l'intervalle)."""
+    """Convertit une clé en indices. Ignore les caractères invalides de la clé."""
     indices: list[int] = []
     for c in texte:
         idx = _car_to_index(c)
-        if idx is None:
-            raise ValueError(
-                f"Caractère '{c}' hors alphabet ASCII {ASCII_MIN}..{ASCII_MAX}, "
-                "impossible pour cet exercice pédagogique."
-            )
-        indices.append(idx)
+        if idx is not None:
+            indices.append(idx)
     return indices
 
-
 def _cle_vigenere_indices(cle: str) -> list[int]:
-    """Convertit la clé (mot) en liste d'indices 0..94."""
+    """Prépare la clé Vigenère."""
     if not cle:
         raise ValueError("La clé Vigenère ne doit pas être vide.")
-    return _texte_vers_indices(cle)
+    indices = _texte_vers_indices(cle)
+    if not indices:
+        raise ValueError("La clé doit contenir au moins un caractère valide (ASCII 32-126).")
+    return indices
 
+# --- LOGIQUE CÉSAR ---
+
+def chiffrer(message: str, cle: int) -> str:
+    """
+    Chiffre un message avec César (générique) de manière robuste.
+    Si un caractère est hors de la plage ASCII, il est recopié tel quel.
+    """
+    res = []
+    for char in message:
+        idx = _car_to_index(char)
+        if idx is not None:
+            # Caractère chiffrable
+            nouvel_idx = (idx + cle) % ALPHABET_SIZE
+            res.append(_index_to_car(nouvel_idx))
+        else:
+            # Caractère spécial (accent, saut de ligne, guillemet PDF...) -> on garde
+            res.append(char)
+    return "".join(res)
+
+def chiffrer_cesar(message: str, cle: int) -> str:
+    return chiffrer(message, cle)
+
+def dechiffrer_cesar(message: str, cle: int) -> str:
+    return chiffrer(message, -cle)
+
+def chiffrer_cesar_lettre(message: str, cle: str) -> str:
+    decalage = ord(cle[0]) - ASCII_MIN
+    return chiffrer(message, decalage)
+
+def dechiffrer_cesar_lettre(message: str, cle: str) -> str:
+    decalage = ord(cle[0]) - ASCII_MIN
+    return chiffrer(message, -decalage)
+
+# --- LOGIQUE VIGENÈRE (CORRIGÉE) ---
 
 def chiffrer_vigenere(message: str, cle: str) -> str:
     """
-    Chiffrement de Vigenère en préservant la mise en page.
-    Pour chaque lettre : lettre_chiffree = (lettre_message + lettre_cle) mod 95
-    où les lettres sont représentées par (ASCII - 32).
-    Les espaces, retours à la ligne et tabulations sont préservés.
+    Chiffrement Vigenère robuste.
+    Ne plante pas sur les caractères inconnus : il les ignore et n'avance pas la clé.
     """
-    if not cle:
-        raise ValueError("La clé Vigenère ne doit pas être vide.")
-
     key_indices = _cle_vigenere_indices(cle)
     res = []
-    key_position = 0  # Position dans la clé (n'avance que pour les caractères chiffrés)
+    key_position = 0 
     
     for char in message:
-        if char in CARACTERES_PRESERVES:
-            # Préserver les caractères de mise en page
-            res.append(char)
-        else:
-            m_idx = _car_to_index(char)
-            if m_idx is None:
-                raise ValueError(
-                    f"Caractère '{char}' hors alphabet ASCII {ASCII_MIN}..{ASCII_MAX}"
-                )
-            
+        m_idx = _car_to_index(char)
+        
+        if m_idx is not None:
+            # On chiffre seulement si le caractère est valide
             k_idx = key_indices[key_position % len(key_indices)]
             c_idx = (m_idx + k_idx) % ALPHABET_SIZE
             res.append(_index_to_car(c_idx))
-            key_position += 1  # Avancer dans la clé uniquement pour les caractères chiffrés
+            
+            # On avance la clé UNIQUEMENT si on a consommé une lettre
+            key_position += 1
+        else:
+            # Sinon on recopie le caractère (espace, retour ligne, symbole PDF...)
+            res.append(char)
     
     return "".join(res)
 
 def dechiffrer_vigenere(message: str, cle: str) -> str:
     """
-    Déchiffrement de Vigenère en préservant la mise en page.
-    lettre_originale = (lettre_chiffree - lettre_cle) mod 95
+    Déchiffrement Vigenère robuste.
     """
-    if not cle:
-        raise ValueError("La clé Vigenère ne doit pas être vide.")
-
     key_indices = _cle_vigenere_indices(cle)
     res = []
     key_position = 0
     
     for char in message:
-        if char in CARACTERES_PRESERVES:
-            # Préserver les caractères de mise en page
-            res.append(char)
-        else:
-            c_idx = _car_to_index(char)
-            if c_idx is None:
-                raise ValueError(
-                    f"Caractère '{char}' hors alphabet ASCII {ASCII_MIN}..{ASCII_MAX}"
-                )
-            
+        c_idx = _car_to_index(char)
+        
+        if c_idx is not None:
             k_idx = key_indices[key_position % len(key_indices)]
             m_idx = (c_idx - k_idx) % ALPHABET_SIZE
             res.append(_index_to_car(m_idx))
             key_position += 1
+        else:
+            res.append(char)
     
     return "".join(res)
 
+# --- GESTION FICHIERS ---
 
 def chiffrer_fichier(source: str, destination: str, algo: str, cle) -> None:
-    """Chiffre un fichier texte selon l'algorithme et la clé fournis."""
-    with open(source, "r", encoding="utf-8") as f:
-        contenu = f.read()
+    try:
+        with open(source, "r", encoding="utf-8") as f:
+            contenu = f.read()
+    except UnicodeDecodeError:
+        # Tentative de repli si le fichier n'est pas en UTF-8
+        with open(source, "r", encoding="latin-1") as f:
+            contenu = f.read()
 
     if algo == "cesar_num":
         resultat = chiffrer_cesar(contenu, cle)
@@ -159,16 +137,18 @@ def chiffrer_fichier(source: str, destination: str, algo: str, cle) -> None:
     elif algo == "vigenere":
         resultat = chiffrer_vigenere(contenu, cle)
     else:
-        raise ValueError("Algorithme de chiffrement inconnu.")
+        raise ValueError("Algorithme inconnu.")
 
     with open(destination, "w", encoding="utf-8") as f:
         f.write(resultat)
 
-
 def dechiffrer_fichier(source: str, destination: str, algo: str, cle) -> None:
-    """Déchiffre un fichier texte selon l'algorithme et la clé fournis."""
-    with open(source, "r", encoding="utf-8") as f:
-        contenu = f.read()
+    try:
+        with open(source, "r", encoding="utf-8") as f:
+            contenu = f.read()
+    except UnicodeDecodeError:
+        with open(source, "r", encoding="latin-1") as f:
+            contenu = f.read()
 
     if algo == "cesar_num":
         resultat = dechiffrer_cesar(contenu, cle)
@@ -177,21 +157,18 @@ def dechiffrer_fichier(source: str, destination: str, algo: str, cle) -> None:
     elif algo == "vigenere":
         resultat = dechiffrer_vigenere(contenu, cle)
     else:
-        raise ValueError("Algorithme de chiffrement inconnu.")
+        raise ValueError("Algorithme inconnu.")
 
     with open(destination, "w", encoding="utf-8") as f:
         f.write(resultat)
 
-
-
-# --- Interface Tkinter ---
-
+# --- INTERFACE GRAPHIQUE (TKINTER) ---
 
 class Application(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
-        self.title("Logiciel de chiffrement pédagogique")
-        self.geometry("700x400")
+        self.title("Logiciel de chiffrement pédagogique (Corrigé)")
+        self.geometry("700x450")
 
         self._creer_widgets()
         self._creer_menus()
@@ -204,7 +181,6 @@ class Application(tk.Tk):
         )
         label.pack(pady=10)
 
-        # Boutons principaux (version minimale demandée)
         frame = tk.Frame(self)
         frame.pack(pady=10)
 
@@ -232,234 +208,149 @@ class Application(tk.Tk):
         )
         btn_quitter.grid(row=2, column=0, padx=5, pady=5)
 
-        # Zone d'affichage du résultat
+        # Zone d'affichage
         self.resultat_var = tk.StringVar()
         label_res = tk.Label(self, text="Résultat :", font=("Arial", 12, "bold"))
         label_res.pack(pady=5)
 
-        self.resultat_label = tk.Label(
-            self, textvariable=self.resultat_var, wraplength=650, justify="left"
-        )
-        self.resultat_label.pack(padx=10, pady=5, fill="both", expand=True)
+        # Utilisation d'un widget Text pour mieux gérer les longs textes (scroll)
+        self.text_area = tk.Text(self, height=8, wrap="word", bg="#f0f0f0")
+        self.text_area.pack(padx=10, pady=5, fill="both", expand=True)
+        # Scrollbar pour le texte
+        scrollbar = tk.Scrollbar(self.text_area, command=self.text_area.yview)
+        self.text_area.configure(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side="right", fill="y")
+
+    def afficher_resultat(self, texte: str):
+        self.text_area.delete("1.0", tk.END)
+        self.text_area.insert("1.0", texte)
 
     def _creer_menus(self) -> None:
         menubar = tk.Menu(self)
 
-        # Menu César avancé (clé lettre)
         menu_cesar = tk.Menu(menubar, tearoff=0)
-        menu_cesar.add_command(
-            label="Chiffrer (clé lettre)", command=self.action_chiffrer_cesar_lettre
-        )
-        menu_cesar.add_command(
-            label="Déchiffrer (clé lettre)", command=self.action_dechiffrer_cesar_lettre
-        )
+        menu_cesar.add_command(label="Chiffrer (clé lettre)", command=self.action_chiffrer_cesar_lettre)
+        menu_cesar.add_command(label="Déchiffrer (clé lettre)", command=self.action_dechiffrer_cesar_lettre)
         menubar.add_cascade(label="César avancé", menu=menu_cesar)
 
-        # Menu Vigenère
         menu_vigenere = tk.Menu(menubar, tearoff=0)
-        menu_vigenere.add_command(
-            label="Chiffrer un message", command=self.action_chiffrer_vigenere
-        )
-        menu_vigenere.add_command(
-            label="Déchiffrer un message", command=self.action_dechiffrer_vigenere
-        )
+        menu_vigenere.add_command(label="Chiffrer un message", command=self.action_chiffrer_vigenere)
+        menu_vigenere.add_command(label="Déchiffrer un message", command=self.action_dechiffrer_vigenere)
         menubar.add_cascade(label="Vigenère", menu=menu_vigenere)
 
-        # Menu fichiers
         menu_fichier = tk.Menu(menubar, tearoff=0)
-        menu_fichier.add_command(
-            label="Chiffrer un fichier (César num.)",
-            command=lambda: self.action_fichier(chiffrer=True, algo="cesar_num"),
-        )
-        menu_fichier.add_command(
-            label="Déchiffrer un fichier (César num.)",
-            command=lambda: self.action_fichier(chiffrer=False, algo="cesar_num"),
-        )
+        menu_fichier.add_command(label="Chiffrer fichier (César num.)", command=lambda: self.action_fichier(True, "cesar_num"))
+        menu_fichier.add_command(label="Déchiffrer fichier (César num.)", command=lambda: self.action_fichier(False, "cesar_num"))
         menu_fichier.add_separator()
-        menu_fichier.add_command(
-            label="Chiffrer un fichier (César lettre)",
-            command=lambda: self.action_fichier(chiffrer=True, algo="cesar_lettre"),
-        )
-        menu_fichier.add_command(
-            label="Déchiffrer un fichier (César lettre)",
-            command=lambda: self.action_fichier(chiffrer=False, algo="cesar_lettre"),
-        )
+        menu_fichier.add_command(label="Chiffrer fichier (César lettre)", command=lambda: self.action_fichier(True, "cesar_lettre"))
+        menu_fichier.add_command(label="Déchiffrer fichier (César lettre)", command=lambda: self.action_fichier(False, "cesar_lettre"))
         menu_fichier.add_separator()
-        menu_fichier.add_command(
-            label="Chiffrer un fichier (Vigenère)",
-            command=lambda: self.action_fichier(chiffrer=True, algo="vigenere"),
-        )
-        menu_fichier.add_command(
-            label="Déchiffrer un fichier (Vigenère)",
-            command=lambda: self.action_fichier(chiffrer=False, algo="vigenere"),
-        )
+        menu_fichier.add_command(label="Chiffrer fichier (Vigenère)", command=lambda: self.action_fichier(True, "vigenere"))
+        menu_fichier.add_command(label="Déchiffrer fichier (Vigenère)", command=lambda: self.action_fichier(False, "vigenere"))
         menu_fichier.add_separator()
         menu_fichier.add_command(label="Quitter", command=self.quit)
         menubar.add_cascade(label="Fichier", menu=menu_fichier)
 
         self.config(menu=menubar)
 
-    # --- Actions César simple (boutons 1 et 2) ---
+    # --- Actions Interface ---
 
     def _demander_message(self) -> str | None:
         return simpledialog.askstring("Message", "Entrez le message :")
 
     def _demander_cle_num(self) -> int | None:
-        cle_str = simpledialog.askstring(
-            "Clé numérique", "Entrez la clé (nombre entier, positif ou négatif) :"
-        )
-        if cle_str is None:
-            return None
+        cle_str = simpledialog.askstring("Clé numérique", "Entrez la clé (nombre entier) :")
+        if cle_str is None: return None
         try:
             return int(cle_str)
         except ValueError:
             messagebox.showerror("Erreur", "La clé doit être un nombre entier.")
             return None
 
-    def action_chiffrer_cesar(self) -> None:
-        message = self._demander_message()
-        if message is None:
-            return
-        cle = self._demander_cle_num()
-        if cle is None:
-            return
-        resultat = chiffrer_cesar(message, cle)
-        self.resultat_var.set(resultat)
-
-    def action_dechiffrer_cesar(self) -> None:
-        message = self._demander_message()
-        if message is None:
-            return
-        cle = self._demander_cle_num()
-        if cle is None:
-            return
-        resultat = dechiffrer_cesar(message, cle)
-        self.resultat_var.set(resultat)
-
-    # --- Actions César par lettre ---
-
     def _demander_cle_lettre(self) -> str | None:
-        cle = simpledialog.askstring(
-            "Clé (lettre)",
-            "Entrez une lettre qui représente la clé (décalage = ASCII(le) - 32) :",
-        )
+        cle = simpledialog.askstring("Clé (lettre)", "Entrez une lettre clé :")
         if not cle:
             messagebox.showerror("Erreur", "La clé lettre ne doit pas être vide.")
             return None
         return cle[0]
 
-    def action_chiffrer_cesar_lettre(self) -> None:
-        message = self._demander_message()
-        if message is None:
-            return
-        cle = self._demander_cle_lettre()
-        if cle is None:
-            return
-        resultat = chiffrer_cesar_lettre(message, cle)
-        self.resultat_var.set(resultat)
-
-    def action_dechiffrer_cesar_lettre(self) -> None:
-        message = self._demander_message()
-        if message is None:
-            return
-        cle = self._demander_cle_lettre()
-        if cle is None:
-            return
-        resultat = dechiffrer_cesar_lettre(message, cle)
-        self.resultat_var.set(resultat)
-
-    # --- Actions Vigenère ---
-
     def _demander_cle_vigenere(self) -> str | None:
-        cle = simpledialog.askstring(
-            "Clé Vigenère",
-            "Entrez la clé (mot-clé, caractères ASCII entre 32 et 126) :",
-        )
+        cle = simpledialog.askstring("Clé Vigenère", "Entrez la clé (mot-clé) :")
         if not cle:
-            messagebox.showerror("Erreur", "La clé Vigenère ne doit pas être vide.")
+            messagebox.showerror("Erreur", "La clé ne doit pas être vide.")
             return None
         return cle
 
+    def action_chiffrer_cesar(self) -> None:
+        msg = self._demander_message()
+        if msg:
+            cle = self._demander_cle_num()
+            if cle is not None:
+                self.afficher_resultat(chiffrer_cesar(msg, cle))
+
+    def action_dechiffrer_cesar(self) -> None:
+        msg = self._demander_message()
+        if msg:
+            cle = self._demander_cle_num()
+            if cle is not None:
+                self.afficher_resultat(dechiffrer_cesar(msg, cle))
+
+    def action_chiffrer_cesar_lettre(self) -> None:
+        msg = self._demander_message()
+        if msg:
+            cle = self._demander_cle_lettre()
+            if cle:
+                self.afficher_resultat(chiffrer_cesar_lettre(msg, cle))
+
+    def action_dechiffrer_cesar_lettre(self) -> None:
+        msg = self._demander_message()
+        if msg:
+            cle = self._demander_cle_lettre()
+            if cle:
+                self.afficher_resultat(dechiffrer_cesar_lettre(msg, cle))
+
     def action_chiffrer_vigenere(self) -> None:
-        message = self._demander_message()
-        if message is None:
-            return
-        cle = self._demander_cle_vigenere()
-        if cle is None:
-            return
-        try:
-            resultat = chiffrer_vigenere(message, cle)
-        except ValueError as e:
-            messagebox.showerror("Erreur", str(e))
-            return
-        self.resultat_var.set(resultat)
+        msg = self._demander_message()
+        if msg:
+            cle = self._demander_cle_vigenere()
+            if cle:
+                try:
+                    self.afficher_resultat(chiffrer_vigenere(msg, cle))
+                except ValueError as e:
+                    messagebox.showerror("Erreur", str(e))
 
     def action_dechiffrer_vigenere(self) -> None:
-        message = self._demander_message()
-        if message is None:
-            return
-        cle = self._demander_cle_vigenere()
-        if cle is None:
-            return
+        msg = self._demander_message()
+        if msg:
+            cle = self._demander_cle_vigenere()
+            if cle:
+                try:
+                    self.afficher_resultat(dechiffrer_vigenere(msg, cle))
+                except ValueError as e:
+                    messagebox.showerror("Erreur", str(e))
+
+    def action_fichier(self, chiffrer_mode: bool, algo: str) -> None:
+        source = filedialog.askopenfilename(title="Fichier source")
+        if not source: return
+        destination = filedialog.asksaveasfilename(title="Enregistrer sous", defaultextension=".txt")
+        if not destination: return
+
+        cle = None
+        if algo == "cesar_num": cle = self._demander_cle_num()
+        elif algo == "cesar_lettre": cle = self._demander_cle_lettre()
+        elif algo == "vigenere": cle = self._demander_cle_vigenere()
+
+        if cle is None: return
+
         try:
-            resultat = dechiffrer_vigenere(message, cle)
-        except ValueError as e:
-            messagebox.showerror("Erreur", str(e))
-            return
-        self.resultat_var.set(resultat)
-
-    # --- Actions fichiers ---
-
-    def action_fichier(self, chiffrer: bool, algo: str) -> None:
-        source = filedialog.askopenfilename(
-            title="Choisir le fichier texte",
-            filetypes=[("Fichiers texte", "*.txt"), ("Tous les fichiers", "*.*")],
-        )
-        if not source:
-            return
-
-        destination = filedialog.asksaveasfilename(
-            title="Enregistrer le résultat sous",
-            defaultextension=".txt",
-            filetypes=[("Fichiers texte", "*.txt"), ("Tous les fichiers", "*.*")],
-        )
-        if not destination:
-            return
-
-        # Demande de clé selon l'algorithme
-        try:
-            if algo == "cesar_num":
-                cle = self._demander_cle_num()
-                if cle is None:
-                    return
-            elif algo == "cesar_lettre":
-                cle = self._demander_cle_lettre()
-                if cle is None:
-                    return
-            elif algo == "vigenere":
-                cle = self._demander_cle_vigenere()
-                if cle is None:
-                    return
-            else:
-                messagebox.showerror("Erreur", "Algorithme de fichier inconnu.")
-                return
-
-            if chiffrer:
+            if chiffrer_mode:
                 chiffrer_fichier(source, destination, algo, cle)
             else:
                 dechiffrer_fichier(source, destination, algo, cle)
-
-            messagebox.showinfo(
-                "Succès", f"Le fichier a été traité et enregistré dans :\n{destination}"
-            )
-        except Exception as e:  # noqa: BLE001
-            messagebox.showerror("Erreur", f"Une erreur est survenue : {e}")
-
-
-def main() -> None:
-    app = Application()
-    app.mainloop()
-
+            messagebox.showinfo("Succès", f"Fichier traité :\n{destination}")
+        except Exception as e:
+            messagebox.showerror("Erreur", f"Échec : {e}")
 
 if __name__ == "__main__":
-    main()
+    app = Application()
+    app.mainloop()
